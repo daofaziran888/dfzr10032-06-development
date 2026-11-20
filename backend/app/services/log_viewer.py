@@ -1,6 +1,7 @@
 """采集日志业务规则：状态流转、字段校验与筛选口径都收在这里。"""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from app.store import store
@@ -49,6 +50,39 @@ class LogViewerService:
         entry["abnormal"] = False
         rows.append(entry)
         return entry, []
+
+    def append_system_log(
+        self,
+        *,
+        log_code: str,
+        task: str,
+        level: str,
+        content: str,
+        status: str = "未处理",
+        stack: str = "",
+        operator: str = "采集调度器",
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """登记一条由系统动作产生的日志（批次包切分等），保留业务侧附带的核对字段。"""
+        rows = store.rows(MODULE)
+        entry: dict[str, Any] = {
+            "id": max((int(row.get("id", 0)) for row in rows), default=0) + 1,
+            "日志编号": log_code,
+            "关联任务": task,
+            "日志级别": level,
+            "记录时间": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "日志内容": content,
+            "错误堆栈": stack,
+            "处理状态": status,
+            "处理人": operator,
+            "status": status,
+            "pending": status in ("未处理", "处理中"),
+            "abnormal": level == "错误",
+        }
+        if extra:
+            entry.update(extra)
+        rows.append(entry)
+        return entry
 
     def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(MODULE, entry_id)

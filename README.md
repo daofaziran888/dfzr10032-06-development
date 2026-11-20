@@ -67,9 +67,46 @@ npm run dev
 | 数据血缘追踪 | `lineage` | 血缘关系 | 关系编号、上游节点、下游节点 |
 | 采集报告 | `report` | 采集报告 | 报告编号、采集源、统计周期 |
 
+### 增量批次包
+
+增量采集页的「增量批次包」（`/incremental/batches`）把指定游标区间的源端变更切成分片，
+打包成可离线回放的批次包。后端在 `app/services/batch_package.py`，接口在
+`app/routers/batch_package.py`，包文件默认落在 `backend/var/packages/<批次包编号>/`。
+
+- `POST /api/incremental/batches`：切分打包。必填 `来源标识`、`起始游标`、`结束游标`；
+  可选 `分片条数`、`游标编号`、`模拟写入失败于第几片`（本地演练用）。
+- `POST /api/incremental/batches/{编号}/retry`：追加一次尝试；上一次的中间片保留供核对。
+- `GET /api/incremental/batches/{编号}/index`：只返回已交付且逐片校验通过的索引。
+- `GET /api/incremental/batches/{编号}/coverage?start=&end=&attempt=`：逐片列区间并核对覆盖。
+- `GET /api/incremental/batches/{编号}/replay?cursor=`：按整片回放包含该游标位置的分片。
+- `GET /api/incremental/batches/{编号}/download`：下载 zip；未交付或分片不齐备时拒绝。
+
+关键口径：
+
+- **索引最后发布**：所有分片写完并且记录数、游标区间、校验和都对得上，才原子写入
+  `index.json`；没有索引的包不能下载、不能回放，避免把缺失游标误认为「没有变更」。
+- **每次尝试独立目录**：`attempts/attempt-000N/` 下的中间片即使存在，也不被本次索引引用。
+- **一次切分只用一个口径**：切分途中分片条数被改动就判本次尝试失败，不会产出混排索引；
+  重试按新口径整包重切。
+- **采集日志按尝试登记**：每条尝试记录来源、切分口径、`覆盖游标区间`、`实际覆盖段` 和
+  逐片货架区间；在采集日志页按 `批次包编号` 可筛出，也可通过批次包详情的 `logs` 读取。
+
+复现「游标 180-209 货架变更、前十条已写入、现场改为每片六条」的完整口径：
+
+```bash
+cd backend
+python3 scripts/replay_scenario.py
+```
+
+回放人员据此可以看到：第 1 次切分只实际覆盖 `[180, 199]` 且未交付；重试后索引为 5 片、
+每片 6 条；游标 188 落在分片 2 `[186, 191]`，整片重放货架 `SH-0186`~`SH-0191`；
+第 1 次切分只能从采集日志核对，不能作为回放输入。
+
+
 ## 约定
 
 - 每个模块的前端页面在 `frontend/src/views/<模块>/index.vue`，后端接口在
   `backend/app/routers/<模块>.py`，业务规则在 `backend/app/services/<模块>.py`。
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
+- 增量批次包的回归测试在 `backend/tests/`，运行：`cd backend && python3 -m pytest tests -q`。

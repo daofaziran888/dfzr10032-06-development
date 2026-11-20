@@ -5,6 +5,7 @@ const Datasource = () => import('@/views/datasource/index.vue')
 const Crawler = () => import('@/views/crawler/index.vue')
 const Apiclient = () => import('@/views/apiclient/index.vue')
 const Incremental = () => import('@/views/incremental/index.vue')
+const IncrementalBatches = () => import('@/views/incremental/batches.vue')
 const RobotTask = () => import('@/views/robot_task/index.vue')
 const Ingestion = () => import('@/views/ingestion/index.vue')
 const Parser = () => import('@/views/parser/index.vue')
@@ -27,6 +28,7 @@ const router = createRouter({
     { path: '/crawler', name: 'crawler', component: Crawler },
     { path: '/apiclient', name: 'apiclient', component: Apiclient },
     { path: '/incremental', name: 'incremental', component: Incremental },
+    { path: '/incremental/batches', name: 'incremental_batches', component: IncrementalBatches },
     { path: '/robot_task', name: 'robot_task', component: RobotTask },
     { path: '/ingestion', name: 'ingestion', component: Ingestion },
     { path: '/parser', name: 'parser', component: Parser },

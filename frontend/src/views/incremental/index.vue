@@ -6,6 +6,7 @@
         <p class="page-desc">维护增量游标，围绕游标编号、来源标识、增量字段、当前水位做登记、筛选与状态流转。</p>
       </div>
       <div class="page-actions">
+        <RouterLink class="btn" to="/incremental/batches">增量批次包</RouterLink>
         <button class="btn primary" type="button" @click="openCreate">登记增量游标</button>
         <button class="btn" type="button" @click="exportRows">导出增量采集清单</button>
       </div>
